@@ -10,127 +10,126 @@
 
 (function () {
     'use strict';
-    const postTicket = async (data = {}) => {
-        const {
-            stage_id,
-            user_id,
-            name,
-            reviewer_id,
-            tag_id,
-            description,
-        } = data;
-        const payload = {
-            "id": 72,
-            "jsonrpc": "2.0",
-            "method": "call",
-            "params": {
-                "args": [
-                    {
-                        name,
-                        stage_id,
-                        "reviewer_id": reviewer_id,
-                        description,
-                        "user_ids": [[6, false, [user_id]]],
-                        "tag_ids": [[6, false, [tag_id]]],
-                        "recurrence_id": false,
-                        "company_id": 1,
-                        "recurrence_update": "this",
-                        "priority": "0",
-                        "kanban_state": "normal",
-                        "project_id": 49,
-                        "display_project_id": false,
-                        "x_owner_id": false,
-                        "active": true,
-                        "partner_id": false,
-                        "partner_phone": false,
-                        "sale_line_id": false,
-                        "planned_date_begin": false,
-                        "planned_date_end": false,
-                        "date_deadline": false,
-                        "recurring_task": false,
-                        "mnt_subscription_id": false,
-                        "planned_hours": 0,
-                        "x_reliability": false,
-                        "x_virtual_remaining": 0,
-                        "timesheet_ids": [],
-                        "child_ids": [],
-                        "depend_on_ids": [[6, false, []]],
-                        "repeat_interval": 1,
-                        "repeat_unit": "week",
-                        "sun": false,
-                        "mon": false,
-                        "tue": false,
-                        "wed": false,
-                        "thu": false,
-                        "fri": false,
-                        "sat": false,
-                        "repeat_on_month": "date",
-                        "repeat_on_year": "date",
-                        "repeat_day": false,
-                        "repeat_week": false,
-                        "repeat_weekday": false,
-                        "repeat_month": false,
-                        "repeat_type": "forever",
-                        "repeat_until": "2022-12-22",
-                        "repeat_number": 1,
-                        "analytic_account_id": 55,
-                        "analytic_tag_ids": [[6, false, []]],
-                        "parent_id": false,
-                        "sequence": 10,
-                        "email_from": false,
-                        "email_cc": false,
-                        "displayed_image_id": false,
-                        "x_no_dev": false,
-                        "x_lead_id": false,
-                        "x_date_production": false,
-                        "x_date_support": false,
-                        "x_review": "<p><br></p>",
-                        "enterprise_open_issue_ids": [],
-                        "message_follower_ids": [],
-                        "activity_ids": [],
-                        "message_ids": []
-                    }
-                ],
-                "model": "project.task",
-                "method": "create",
-                "kwargs": {
-                    "context": {
-                        "lang": "en_US",
-                        "tz": "Europe/Brussels",
-                        "uid": 1569417,
-                        "allowed_company_ids": [1],
-                        "params": { "menu_id": 5879, "action": 3531, "cids": 1 },
-                        "search_default_my_tasks": 1,
-                        "search_default_display_project_id": 49,
-                        "default_project_id": 49
+    class SocketClient {
+        constructor(url) {
+            this.socket = new WebSocket(url);
+            this.id = generateId(10);
+            this.callbacks = {};
+            this.eventListeners = {
+                error: [{ callback: e => console.log("error", e), once: false }],
+                disconnect: [{ callback: e => console.log("disconnect socket", e), once: false }],
+                open: [{ callback: e => this.emit("imConnected"), once: true }],
+            };
+            function generateId(len) {
+                const charset = "abdefghijklmnopqrstuvwxyzABDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                const hash = n => [...new Array(n)].map(x => charset[Math.floor(Math.random() * charset.length)]).join("")
+                return hash(len);
+            }
+            function checkCallbacks({ event, args }) {
+                for (let key of Object.keys(this.callbacks)) {
+                    const string = `__${key}:callback_`
+                    if (!event.indexOf(string)) {
+                        const index = event[string.length];
+                        this.callbacks[key][index](...args);
+                        this.callbacks[key].splice(index, 1);
+                        return true;
                     }
                 }
+                return false;
             }
-        }
-        const response = await fetch("https://www.odoo.com/web/dataset/call_kw/project.task/create", {
-            "headers": {
-                "accept": "*/*",
-                "accept-language": "en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7",
-                "content-type": "application/json",
-                "sec-ch-ua": "'Not?A_Brand';v='8', 'Chromium';v='108', 'Google Chrome';v='108'",
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": "'Windows'",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-origin",
-                "cookie": '_ga=GA1.2.12349066.1613826254; cids=1; td_id=48b5b56b289b186d562d58d133de589e7535bc4e; session_id=fa0223d9a5ff03709c596540f78cadc0f69637fc; visitor_uuid=2f579177c12449ff9099d5a865670780; frontend_lang=en_US; tz=Europe/Paris; _gid=GA1.2.2010217592.1671425143; tz=Europe/Paris; im_livechat_history=[" / "," / trial"]',
-            },
-            "referrer": "https://www.odoo.com/web",
-            "referrerPolicy": "strict-origin-when-cross-origin",
-            "body": JSON.stringify(payload),
-            "method": "POST",
-            "mode": "cors",
-            "credentials": "include"
-        });
-        const json = await response.json();
-        return json.result;
-    }
+            this.socket.onopen = (event) => {
+                this.callListener("open", event)
+            }
+            this.socket.onclose = closeArg => {
+                this.callListener("close", closeArg)
+                this.callListener("disconnect", closeArg);
+            }
+            this.socket.onmessage = ({ data }) => {
+                let parsedEvent = {};
+                try {
+                    parsedEvent = JSON.parse(data);
+                } catch (e) {
+                    return this.callListener("error", e);
+                } finally {
+                    const { event } = parsedEvent;
+                    if (!parsedEvent || !parsedEvent.hasOwnProperty("event")) return this.callListener("error", "Invalid JSON content")
+                    if (checkCallbacks.call(this, parsedEvent)) return;
+                    let eventCallback = this.eventListeners[event];
+                    if (!eventCallback) {
+                        return;
+                    }
+                    let args = parsedEvent.args;
+                    let functions = args.map((x, y) => [x, y]).filter(x => typeof x[0] === "string" && ~x[0].indexOf("__function(){}__"));
+                    functions.forEach((data, callbackIndex) => {
+                        let [arg, i] = data;
+                        args[i] = ((...callbackArgs) => {
+                            this.emit(`__${event}:callback_${callbackIndex}`, ...callbackArgs);
+                        }).bind(this);
+                    })
+                    this.callListener(event, ...parsedEvent.args);
+                }
+            }
 
+        }
+        callListener(listener, ...args) {
+            if (!this.eventListeners.hasOwnProperty(listener)) return this.socket;
+            console.log("call", listener, ...args);
+            const eventCallbacks = this.eventListeners[listener];
+            eventCallbacks.forEach((eventCallback, eventCallbackIndex) => {
+                eventCallback.callback(...args);
+                if (eventCallbacks.once) {
+                    this.eventListeners[event].splice(eventCallbackIndex, 1);
+                }
+            });
+            return this;
+        }
+        removeAllListeners(listener) {
+            if (!listener || !listener.length) listener = Object.keys(this.eventListeners);
+            else listener = [listener];
+            listener.forEach(x => {
+                if (this.eventListeners.hasOwnProperty(x)) this.eventListeners[x].length = 0;
+            })
+            return this;
+        }
+        once(eventName, callback) {
+            return this.on(eventName, callback, true);
+        }
+        on(eventName, callback, once = false) {
+            if (typeof callback !== "function" || !eventName) return this.socket;
+            this.eventListeners[eventName] = this.eventListeners[eventName] || [];
+            this.eventListeners[eventName].push({
+                callback, once
+            })
+            return this;
+        }
+        off(eventName, callback) {
+            if (!eventName) return this.socket;
+            if (!callback || typeof callback !== "function") return this.removeAllListeners(eventName);
+            if (this.eventListeners.hasOwnProperty(eventName)) {
+                this.eventListeners[eventName].forEach((event, index) => {
+                    if (event.callback == callback) this.eventListeners[eventName].splice(index, 1);
+                })
+            }
+            return this;
+        }
+        disconnect() {
+            this.socket.close();
+        }
+        emit(event, ...spreadArgs) {
+            if (this.socket.readyState !== 1) return;
+            this.socket.send(JSON.stringify({
+                event,
+                args: [...spreadArgs]
+            }, (a, elem) => {
+                if (typeof elem == "function") {
+                    this.callbacks[event] = this.callbacks[event] || [];
+                    this.callbacks[event].push(elem);
+                    return "__function(){}__";
+                } else return elem
+            }))
+            return this;
+        }
+    }
     const getData = async url => {
         const response = await fetch(url, {
             "headers": {
@@ -155,86 +154,23 @@
         const json = await response.json();
         return json;
     }
-    const createOdooTicket = async () => {
-        const url = document.querySelector('a[rel="noreferrer noopener"]').href;
-        const eventUrl = url.replace("/json/", "");
-        const data = await getData(url);
-        const description = createDescription(eventUrl, data);
-        const id = await postTicket({
-            stage_id: 194,
-            user_id: 1569417,
-            reviewer_id: 1569417,
-            tag_id: 25564,
-            name: data.title,
-            description,
-        });
-        return id;
-    }
-
-    const createDescription = (url, data) => {
-        const container = document.createElement("div");
-        let html = "";
-        const title = `<h3><a href="${url}" target="_blank" rel="noreferrer">Sentry ticket</a></h3>`;
-        html += title;
-        const date = `<h3>Date</h3>
-        <p>
-            <span style="color: rgb(153, 141, 165); font-size: 14px; background-color: rgb(36, 29, 42); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
-            <font class="bg-o-color-3" style="color: inherit;">${new Date(data.datetime).toUTCString()}</font>
-            </span>
-        </p>`
-        html += date;
-        const events = `<h3>Events</h3>
-        <p>XX</p>`
-        html += events;
-        debugger;
-        let tags = `<h3>Tags</h3>
-        <table class="table table-bordered">
-            <tbody>
-            ${data.tags.map(tag => `<tr>
-                <td><p>${tag[0]}</p></td>
-                <td><p>${tag[1]}</p></td>
-            </tr>`)}
-            </tbody>
-        </table>`;
-        html += tags;
-        const message = `<h3>Message</h3>
-        <pre>${data.message}</pre>`;
-                const RAWstacktrace = `
-        <h3>RAW Stacktrace</h3>
-        <pre>
-        ${data.exception.values[0].type}: ${data.exception.values[0].value}
-
-        ${data.exception.values[0].stacktrace.frames.map(frame => {
-                    return `${frame.filename}::${frame.module}.${frame.function}:${frame.lineno}\n${frame.context_line}`;
-                })}
-        </pre>`
-        html += RAWstacktrace;
-        const processData = `
-        <table class="table table-bordered">
-            <tbody>
-            ${[...Object.entries(data.extra), ["Python version", data.modules.python], ["SDK", data.sdk.name + " " + data.sdk.version]].map(p => {
-                    return `<tr>
-                <td><p>${p[0]}/p></td>
-                <td><p>${p[1]}</p></td>
-            </tr>`
-                })}
-            </tbody>
-        </table>`
-        html += processData;
-        return html;
-    }
-
-    const start = (url) => {
-        console.log("Starting", url);
+    const start = () => {
+        console.log("Starting");
         const resolveButton = document.querySelector('button[aria-label="Resolve"]');
         if (resolveButton) {
-            const clone = resolveButton.cloneNode(true);
-            clone.children[1].textContent = "Create Odoo Ticket";
-            clone.style.marginLeft = "1em";
-            resolveButton.parentElement.appendChild(clone);
-            clone.addEventListener("click", async () => {
-                const id = await createOdooTicket();
-                window.open(`https://www.odoo.com/web#id=${id}&menu_id=5879&action=3531&model=project.task`)
+            const socket = new SocketClient("wss://sentry.macadelic.io");
+            socket.on("connect", () => {
+                const clone = resolveButton.cloneNode(true);
+                clone.children[1].textContent = "Create Odoo Ticket";
+                clone.style.marginLeft = "1em";
+                resolveButton.parentElement.appendChild(clone);
+                clone.addEventListener("click", async () => {
+                    const url = document.querySelector('a[rel="noreferrer noopener"]').href;
+                    const data = await getData(url);
+                    socket.emit("createTicket", url, data, (id) => {
+                        window.open(`https://www.odoo.com/web#id=${id}&cids=1&menu_id=5879&action=3531&model=project.task&view_type=form`);           
+                    });
+                })
             })
         }
     }
