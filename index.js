@@ -124,17 +124,15 @@ const createDescription = (url, data) => {
   const message = `<h3>Message</h3>
         <pre>${data.message}</pre>`;
   html += message;
-  const RAWstacktrace = `
-        <h3>RAW Stacktrace</h3>
+  const smartStacktrace = `
+        <h3>Smart Stacktrace</h3>
         <pre>
         ${data.exception.values.map(value => {
     return `<h4>${value.type}: ${value.value}</h4>
-          ${value.stacktrace.frames.map(frame => {
-      return `${frame.filename}::${frame.module}.${frame.function}:${frame.lineno}\n${frame.context_line}`;
-    }).join("\n")}`
-  }).join("\n\n")}
+          ${formatStacktraceValue(value)}`
+  }).join("\n\n\n")}
         </pre>`
-  html += RAWstacktrace;
+  html += smartStacktrace;
   const processData = `
     <h3>Data</h3>
         <table class="table table-bordered">
@@ -148,15 +146,17 @@ const createDescription = (url, data) => {
             </tbody>
         </table>`
   html += processData;
-  const smartStacktrace = `
-        <h3>Smart Stacktrace</h3>
+  const RAWstacktrace = `
+        <h3>RAW Stacktrace</h3>
         <pre>
         ${data.exception.values.map(value => {
     return `<h4>${value.type}: ${value.value}</h4>
-          ${formatStacktraceValue(value)}`
-  }).join("\n\n\n")}
+          ${value.stacktrace.frames.map(frame => {
+      return `${frame.filename}::${frame.module}.${frame.function}:${frame.lineno}\n${frame.context_line}`;
+    }).join("\n")}`
+  }).join("\n\n")}
         </pre>`
-  html += smartStacktrace;
+  html += RAWstacktrace;
   return html;
 }
 
