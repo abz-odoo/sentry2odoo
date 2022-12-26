@@ -46,7 +46,7 @@ const post = ({ args, model, method }) => {
 }
 const read = async (model, ids, fields) => {
   const body = await post({
-    args: [typeof ids == "number" ? [ids] : ids, typeof fields == "string" ? [fields]: fields],
+    args: [typeof ids == "number" ? [ids] : ids, typeof fields == "string" ? [fields] : fields],
     method: "read",
     model
   })
@@ -54,7 +54,7 @@ const read = async (model, ids, fields) => {
 }
 const create = async (model, args) => {
   const body = await post({
-    args: typeof args == "array" ? args: [args],
+    args: typeof args == "array" ? args : [args],
     method: "create",
     model
   })
@@ -114,7 +114,7 @@ const createDescription = (url, data) => {
   let tags = `<h3>Tags</h3>
         <table class="table table-bordered">
             <tbody>
-            ${data.tags.map(tag => `<tr>
+            ${[["Name", "Value"], ...data.tags].map(tag => `<tr>
                 <td><p>${tag[0]}</p></td>
                 <td><p>${tag[1]}</p></td>
             </tr>`).join("\n")}
@@ -127,19 +127,19 @@ const createDescription = (url, data) => {
   const RAWstacktrace = `
         <h3>RAW Stacktrace</h3>
         <pre>
-        ${data.exception.values[0].type}: ${data.exception.values[0].value}
-        ${data.exception.values.map(value=>{
-          return value.stacktrace.frames.map(frame => {
-            return `${frame.filename}::${frame.module}.${frame.function}:${frame.lineno}\n${frame.context_line}`;
-          }).join("\n")
-        }).join("\n\n")}
+        ${data.exception.values.map(value => {
+    return `<h4>${value.type}: ${value.value}</h4>
+          ${value.stacktrace.frames.map(frame => {
+      return `${frame.filename}::${frame.module}.${frame.function}:${frame.lineno}\n${frame.context_line}`;
+    }).join("\n")}`
+  }).join("\n\n")}
         </pre>`
   html += RAWstacktrace;
   const processData = `
     <h3>Data</h3>
         <table class="table table-bordered">
             <tbody>
-              ${[...Object.entries(data.extra), ["Python version", data.modules.python], ["SDK", data.sdk.name + " " + data.sdk.version]].map(p => {
+              ${[["Name", "Value"], ...Object.entries(data.extra), ["Python version", data.modules.python], ["SDK", data.sdk.name + " " + data.sdk.version]].map(p => {
     return `<tr>
                           <td><p>${p[0]}</p></td>
                           <td><p>${p[1]}</p></td>
@@ -148,7 +148,37 @@ const createDescription = (url, data) => {
             </tbody>
         </table>`
   html += processData;
+  const smartStacktrace = `
+        <h3>Smart Stacktrace</h3>
+        <pre>
+        ${data.exception.values.map(value => {
+    return `<h4>${value.type}: ${value.value}</h4>
+          ${formatStacktraceValue(value)}`
+  }).join("\n\n\n")}
+        </pre>`
+  html += smartStacktrace;
   return html;
+}
+
+const formatStacktraceValue = value => {
+  return value.stacktrace.frames.reverse().map(frame => {
+    frame.pre_context = frame.pre_context || [];
+    frame.post_context = frame.post_context || [];
+    frame.vars = frame.vars || {};
+    return `<details>
+      <summary>${frame.filename}::${frame.module}.${frame.function}:${frame.lineno}</summary>
+      <pre>${[...frame.pre_context.map((x, y) => [x, frame.lineno - (5 - y)]), [frame.context_line, frame.lineno, true], ...frame.post_context.map((x, y) => [x, frame.lineno + y + 1])].map(line => `<span style="margin-bottom:0;${line[2] ? "color:red;" : ""}">${line[1]}:${line[0]}</span>`).join("\n")}</pre>
+      <h4>Variables</h4>
+      <table class="table table-bordered">
+            <tbody>
+            ${[["Name", "Value"], ...Object.entries(frame.vars)].map((tag, index) => `<tr>
+                <td><p>${tag[0]}</p></td>
+                <td><p>${index ? JSON.stringify(tag[1], null, 1) : tag[1]}</p></td>
+            </tr>`).join("\n")}
+            </tbody>
+        </table>
+    </details>`
+  }).join("\n")
 }
 const postTicket = async (data = {}) => {
   const {
@@ -160,72 +190,72 @@ const postTicket = async (data = {}) => {
     description,
   } = data;
   const payload = [
-        {
-          name,
-          stage_id,
-          "reviewer_id": reviewer_id,
-          description,
-          "user_ids": [[6, false, [user_id]]],
-          "tag_ids": [[6, false, [tag_id]]],
-          "recurrence_id": false,
-          "company_id": 1,
-          "recurrence_update": "this",
-          "priority": "0",
-          "kanban_state": "normal",
-          "project_id": 49,
-          "display_project_id": false,
-          "x_owner_id": false,
-          "active": true,
-          "partner_id": false,
-          "partner_phone": false,
-          "sale_line_id": false,
-          "planned_date_begin": false,
-          "planned_date_end": false,
-          "date_deadline": false,
-          "recurring_task": false,
-          "mnt_subscription_id": false,
-          "planned_hours": 0,
-          "x_reliability": false,
-          "x_virtual_remaining": 0,
-          "timesheet_ids": [],
-          "child_ids": [],
-          "depend_on_ids": [[6, false, []]],
-          "repeat_interval": 1,
-          "repeat_unit": "week",
-          "sun": false,
-          "mon": false,
-          "tue": false,
-          "wed": false,
-          "thu": false,
-          "fri": false,
-          "sat": false,
-          "repeat_on_month": "date",
-          "repeat_on_year": "date",
-          "repeat_day": false,
-          "repeat_week": false,
-          "repeat_weekday": false,
-          "repeat_month": false,
-          "repeat_type": "forever",
-          "repeat_until": "2022-12-22",
-          "repeat_number": 1,
-          "analytic_account_id": 55,
-          "analytic_tag_ids": [[6, false, []]],
-          "parent_id": false,
-          "sequence": 10,
-          "email_from": false,
-          "email_cc": false,
-          "displayed_image_id": false,
-          "x_no_dev": false,
-          "x_lead_id": false,
-          "x_date_production": false,
-          "x_date_support": false,
-          "x_review": "<p><br></p>",
-          "enterprise_open_issue_ids": [],
-          "message_follower_ids": [],
-          "activity_ids": [],
-          "message_ids": []
-        }
-      ]
+    {
+      name,
+      stage_id,
+      "reviewer_id": reviewer_id,
+      description,
+      "user_ids": [[6, false, [user_id]]],
+      "tag_ids": [[6, false, [tag_id]]],
+      "recurrence_id": false,
+      "company_id": 1,
+      "recurrence_update": "this",
+      "priority": "0",
+      "kanban_state": "normal",
+      "project_id": 49,
+      "display_project_id": false,
+      "x_owner_id": false,
+      "active": true,
+      "partner_id": false,
+      "partner_phone": false,
+      "sale_line_id": false,
+      "planned_date_begin": false,
+      "planned_date_end": false,
+      "date_deadline": false,
+      "recurring_task": false,
+      "mnt_subscription_id": false,
+      "planned_hours": 0,
+      "x_reliability": false,
+      "x_virtual_remaining": 0,
+      "timesheet_ids": [],
+      "child_ids": [],
+      "depend_on_ids": [[6, false, []]],
+      "repeat_interval": 1,
+      "repeat_unit": "week",
+      "sun": false,
+      "mon": false,
+      "tue": false,
+      "wed": false,
+      "thu": false,
+      "fri": false,
+      "sat": false,
+      "repeat_on_month": "date",
+      "repeat_on_year": "date",
+      "repeat_day": false,
+      "repeat_week": false,
+      "repeat_weekday": false,
+      "repeat_month": false,
+      "repeat_type": "forever",
+      "repeat_until": "2022-12-22",
+      "repeat_number": 1,
+      "analytic_account_id": 55,
+      "analytic_tag_ids": [[6, false, []]],
+      "parent_id": false,
+      "sequence": 10,
+      "email_from": false,
+      "email_cc": false,
+      "displayed_image_id": false,
+      "x_no_dev": false,
+      "x_lead_id": false,
+      "x_date_production": false,
+      "x_date_support": false,
+      "x_review": "<p><br></p>",
+      "enterprise_open_issue_ids": [],
+      "message_follower_ids": [],
+      "activity_ids": [],
+      "message_ids": []
+    }
+  ]
   const ids = await create("project.task", payload);
   return typeof ids == "array" ? ids.length == 1 ? ids[0] : ids : ids;
 }
@@ -247,7 +277,6 @@ const createOdooTicket = async (url, data) => {
 const io = new Socket(server);
 io.on("connect", socket => {
   console.log("connected");
-  socket.emit("connect");
   socket.on("createTicket", async (url, data, clbk = () => { }) => {
     const id = await createOdooTicket(url, data);
     clbk(id);
