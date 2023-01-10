@@ -103,8 +103,8 @@ const createDescription = (url, data) => {
   html += title;
   const date = `<h3>Date</h3>
         <p>
-            <span style="color: rgb(153, 141, 165); font-size: 14px; background-color: rgb(36, 29, 42); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
-            <font class="bg-o-color-3" style="color: inherit;">${new Date(data.datetime).toUTCString()}</font>
+            <span style="font-size: 14px; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+            <font class="" style="color: inherit;">${new Date(data.datetime).toUTCString()}</font>
             </span>
         </p>`
   html += date;
@@ -239,7 +239,7 @@ const postTicket = async (data = {}) => {
       "repeat_until": "2022-12-22",
       "repeat_number": 1,
       "analytic_account_id": 55,
-      "analytic_tag_ids": [[6, false, []]],
+      // "analytic_tag_ids": [[6, false, []]],
       "parent_id": false,
       "sequence": 10,
       "email_from": false,
