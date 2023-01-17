@@ -1,0 +1,13 @@
+[Unit]
+Description=Sentry2odoo
+
+[Service]
+User=macadelic
+Environment="PATH=/home/nodejs/bin:/usr/bin:/bin"
+WorkingDirectory=/home/macadelic/sentry2odoo
+ExecStart=/home/macadelic/sentry2odoo/run-sentry.sh
+Restart=on-failure
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
